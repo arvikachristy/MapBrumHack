@@ -1,60 +1,90 @@
 package com.example.user.mapbrumhack;
 
+import android.app.Dialog;
+import android.app.DialogFragment;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentSender;
+import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
-import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.Button;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
 
-/*
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
-import com.google.android.gms.maps.CameraUpdate;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapView;
-import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.LatLng; */
-public class MainActivity  extends FragmentActivity implements OnMapReadyCallback {
+
+public class MainActivity  extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+    private static final int REQUEST_RESOLVE_ERROR = 1001;
+    private static final String DIALOG_ERROR = "dialog_error";
+    private static final String STATE_RESOLVING_ERROR = "resolving_error";
+    private boolean mResolvingError = false;
+    private LatLng latlng = new LatLng(0, 0);
+    private boolean MapReady = false;
     private GoogleMap mMap;
+    private GoogleApiClient mGoogleApiClient;
+
+    public MainActivity() {
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        buildGoogleApiClient();
+        mGoogleApiClient.connect();
         setContentView(R.layout.activity_maps);
+        mResolvingError = savedInstanceState != null &&
+                savedInstanceState.getBoolean(STATE_RESOLVING_ERROR, false);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
+    @Override
+    protected void onSaveInstanceState(Bundle outState){
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(STATE_RESOLVING_ERROR, mResolvingError);
+    }
+
+    @Override
+    protected void onStart(){
+        super.onStart();
+        if(!mResolvingError)
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    protected void onStop(){
+        super.onStop();
+        mGoogleApiClient.disconnect();
+    }
+
+    protected synchronized void buildGoogleApiClient(){
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+    }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
-        // Add a marker in Sydney and move the camera
-        LatLng location = new LatLng(-34, 151);
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(location));
+        mMap.setMyLocationEnabled(true);
+        CameraUpdate position = CameraUpdateFactory.newLatLng(latlng);
+        mMap.moveCamera(position);
+        MapReady = true;
     }
 
     @Override
@@ -77,5 +107,85 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onConnected(Bundle connectionHint) {
+        Location mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+                mGoogleApiClient);
+        latlng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+        latlng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+        if(MapReady) {
+            CameraUpdate position = CameraUpdateFactory.newLatLngZoom(latlng, (float)15.0);
+            mMap.animateCamera(position);
+        }
+    }
+
+    @Override
+    public void onConnectionSuspended(int cause) {
+        // Need to disable UI components that depend on Google APIs until
+        // onConnected is called
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        if(mResolvingError){
+            return;
+        } else if(connectionResult.hasResolution()){
+            try {
+                mResolvingError = true;
+                connectionResult.startResolutionForResult(
+                        this, REQUEST_RESOLVE_ERROR);
+            } catch (IntentSender.SendIntentException e) {
+                mGoogleApiClient.connect();
+            }
+        }
+        else{
+            showErrorDialog(connectionResult.getErrorCode());
+            mResolvingError = true;
+        }
+        // This callback is important for handling errors that
+        // may occur while attempting to connect with Google.
+        //
+        // More about this in the 'Handle Connection Failures' section.
+    }
+
+    private void showErrorDialog(int errorCode){
+        ErrorDialogFragment dialogFragment = new ErrorDialogFragment();
+        Bundle args = new Bundle();
+        args.putInt(DIALOG_ERROR, errorCode);
+        dialogFragment.setArguments(args);
+        dialogFragment.show(getFragmentManager(),"tag");
+    }
+
+    public void onDialogDismissed(){
+        mResolvingError = false;
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data){
+        if(requestCode == REQUEST_RESOLVE_ERROR){
+            mResolvingError = false;
+            if (resultCode == RESULT_OK){
+                if(!mGoogleApiClient.isConnecting() &&
+                        !mGoogleApiClient.isConnected()){
+                    mGoogleApiClient.connect();
+                }
+            }
+        }
+    }
+
+    public static class ErrorDialogFragment extends DialogFragment {
+        public ErrorDialogFragment(){ }
+
+        public Dialog onCreateDialog(Bundle savedInstanceState){
+            int errorCode = this.getArguments().getInt(DIALOG_ERROR);
+            return GoogleApiAvailability.getInstance().getErrorDialog(
+                    this.getActivity(), errorCode, REQUEST_RESOLVE_ERROR);
+        }
+
+        @Override
+        public void onDismiss(DialogInterface dialog){
+            ((MainActivity) getActivity()).onDialogDismissed();
+        }
     }
 }
