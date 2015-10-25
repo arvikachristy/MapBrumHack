@@ -21,6 +21,15 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.maps.android.heatmaps.HeatmapTileProvider;
+
+import java.lang.reflect.Array;
+import java.security.Provider;
+import java.util.ArrayList;
+import java.util.Random;
 
 
 public class MainActivity  extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
@@ -119,6 +128,24 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
             CameraUpdate position = CameraUpdateFactory.newLatLngZoom(latlng, (float)15.0);
             mMap.animateCamera(position);
         }
+        ArrayList<LatLng> latlngs = new ArrayList<LatLng>();
+        for(int i = 0; i < 100; i++)
+            latlngs.add(create_lat_lng(mLastLocation.getLatitude(), mLastLocation.getLongitude(), 0.05));
+
+        HeatmapTileProvider mProvider = new HeatmapTileProvider.Builder()
+                .data(latlngs)
+                .radius(40)
+                .build();
+
+        TileOverlay mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+
+
+        for(LatLng l : latlngs){
+            mMap.addMarker(new MarkerOptions()
+                    .position(l)
+                    .alpha(0));
+        }
+
     }
 
     @Override
@@ -187,5 +214,13 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
         public void onDismiss(DialogInterface dialog){
             ((MainActivity) getActivity()).onDialogDismissed();
         }
+    }
+
+    public LatLng create_lat_lng(double lat_seed, double long_seed, double range){
+        double result_a, result_b;
+        Random random = new Random();
+        result_a = (random.nextFloat() % range) - (range / 2);
+        result_b = (random.nextFloat() % range) - (range / 2);
+        return new LatLng(lat_seed + result_a, long_seed + result_b);
     }
 }
