@@ -63,7 +63,7 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Facebook.Sdk.sdkInitialize(getApplicationContext());
+        //Facebook.Sdk.sdkInitialize(getApplicationContext());
         buildGoogleApiClient();
         mGoogleApiClient.connect();
         setContentView(R.layout.activity_maps);
