@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/MapBrumHackOne.iml" filepath="$PROJECT_DIR$/MapBrumHackOne.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/MapBrumHack.iml" filepath="$PROJECT_DIR$/MapBrumHack.iml" />
     </modules>
   </component>
 </project>
