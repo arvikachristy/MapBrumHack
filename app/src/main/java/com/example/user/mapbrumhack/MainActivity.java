@@ -2,14 +2,24 @@ package com.example.user.mapbrumhack;
 
 import android.app.Dialog;
 import android.app.DialogFragment;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.facebook.FacebookSdk;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -18,9 +28,12 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
@@ -29,6 +42,7 @@ import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import java.lang.reflect.Array;
 import java.security.Provider;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 
 
@@ -37,10 +51,11 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
     private static final String DIALOG_ERROR = "dialog_error";
     private static final String STATE_RESOLVING_ERROR = "resolving_error";
     private boolean mResolvingError = false;
-    private LatLng latlng = new LatLng(0, 0);
-    private boolean MapReady = false;
+    private LatLng latlng = new LatLng(0, 0);    private boolean MapReady = false;
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
+    HashMap<Long, MarkerOptions> markers = new HashMap<Long, MarkerOptions>();
+    long markerCount = 0;
 
     public MainActivity() {
     }
@@ -48,6 +63,7 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Facebook.Sdk.sdkInitialize(getApplicationContext());
         buildGoogleApiClient();
         mGoogleApiClient.connect();
         setContentView(R.layout.activity_maps);
@@ -61,7 +77,7 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState){
+    protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(STATE_RESOLVING_ERROR, mResolvingError);
     }
@@ -90,6 +106,14 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener(){
+
+            @Override
+            public void onInfoWindowClick(Marker marker) {
+                Intent viewIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/events/924176117663346/"));
+                startActivity(viewIntent);
+            }
+        });
         mMap.setMyLocationEnabled(true);
         CameraUpdate position = CameraUpdateFactory.newLatLng(latlng);
         mMap.moveCamera(position);
@@ -120,32 +144,33 @@ public class MainActivity  extends FragmentActivity implements OnMapReadyCallbac
 
     @Override
     public void onConnected(Bundle connectionHint) {
+        ArrayList<LatLng> latlngs = new ArrayList<LatLng>();
         Location mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
                 mGoogleApiClient);
-        latlng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         latlng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         if(MapReady) {
             CameraUpdate position = CameraUpdateFactory.newLatLngZoom(latlng, (float)15.0);
             mMap.animateCamera(position);
         }
-        ArrayList<LatLng> latlngs = new ArrayList<LatLng>();
         for(int i = 0; i < 100; i++)
             latlngs.add(create_lat_lng(mLastLocation.getLatitude(), mLastLocation.getLongitude(), 0.05));
 
+        for(LatLng l : latlngs){
+            MarkerOptions m = new MarkerOptions()
+                    .position(l)
+                    .alpha(0)
+                    .title("Brum Hack")
+                    .snippet("Attendees: 39\r\nDate:23rd - 25th Oct");
+            markers.put(markerCount, m);
+            mMap.addMarker(m);
+            markerCount++;
+        }
         HeatmapTileProvider mProvider = new HeatmapTileProvider.Builder()
                 .data(latlngs)
                 .radius(40)
                 .build();
 
         TileOverlay mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
-
-
-        for(LatLng l : latlngs){
-            mMap.addMarker(new MarkerOptions()
-                    .position(l)
-                    .alpha(0));
-        }
-
     }
 
     @Override

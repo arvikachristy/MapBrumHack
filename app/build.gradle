@@ -21,7 +21,9 @@ android {
         }
     }
 }
-
+repositories{
+    mavenCentral()
+}
 dependencies {
     compile 'com.google.maps.android:android-maps-utils:0.4+'
     compile fileTree(dir: 'libs', include: ['*.jar'])
@@ -29,4 +31,6 @@ dependencies {
     compile 'com.android.support:appcompat-v7:23.1.0'
     compile 'com.android.support:design:23.1.0'
     compile 'com.google.android.gms:play-services:8.1.0'
+    compile 'com.facebook.android:facebook-android-sdk:4.7.0'
 }
+
